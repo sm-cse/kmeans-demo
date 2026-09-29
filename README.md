@@ -16,10 +16,11 @@ An interactive classroom demo that runs K-means step by step and shows every num
 ## Using it in class
 
 1. Pick a dataset in the sidebar. **Worked example** is the 6-point, K = 2 example starting at B (5, 8) and E (6, 6).
-2. Choose K and how to place the starting centroids (first K points, random points, k-means++, or type your own positions).
+2. Choose K and how to place the starting centroids (first K points, random points, k-means++, or **Manual**: click K places on the plot).
 3. Press **Step** (or the Space bar) to alternate Assign → Update → Assign … until it converges, or **Run** to play through automatically.
 4. **Reset** returns to the same starting centroids so you can replay the run.
-5. Open **Edit points** under the plot to change coordinates, add points or delete them.
+5. **Click the plot** to add a point where you click, or click an existing point to show its distance calculations. Switch the sidebar to **Remove a point** to delete points by clicking them.
+6. Open **Edit points** under the plot to type exact coordinates.
 
 ## Run it locally
 
@@ -60,7 +61,7 @@ Run the tests with `pip install pytest && pytest`.
 
 ## Desktop version
 
-`desktop/kmeans_demo_gui.py` is the original tkinter app. It works offline and supports clicking on the plot to add, remove and place points. It needs only `matplotlib`:
+`desktop/kmeans_demo_gui.py` is the original tkinter app. It works offline and also supports right-click to remove points. It needs only `matplotlib`:
 
 ```bash
 pip install matplotlib

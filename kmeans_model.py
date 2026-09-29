@@ -15,7 +15,7 @@ WORKED_EXAMPLE = [("A", 3, 3), ("B", 5, 8), ("C", 4, 1), ("D", 4, 7), ("E", 6, 6
 WORKED_START = [[5, 8], [6, 6]]  # start at B and E, as in the slides
 
 DATASETS = ["Worked example (6 points)", "Random blobs", "Empty (add your own)"]
-INIT_METHODS = ["First K points", "Random points", "k-means++", "Manual (type positions)"]
+INIT_METHODS = ["First K points", "Random points", "k-means++", "Manual (click the plot)"]
 
 
 def fmt(v):
@@ -143,7 +143,7 @@ class KMeansModel:
                         cs.append(p)
                         break
         else:
-            raise ValueError("Manual initialisation: type the centroid positions in the sidebar.")
+            raise ValueError("Manual initialisation: click the plot to place the centroids.")
         return self.set_centroids([list(c) for c in cs], method)
 
     def set_centroids(self, centroids, method="Manual"):

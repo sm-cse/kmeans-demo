@@ -8,10 +8,13 @@ Runs K-means one step at a time and shows every number:
     the chosen cluster (ticked) and the squared distance
   * the Centroids table shows each centroid's coordinates and members
   * the Calculations panel writes out the full formulas for every step
+  * click the plot to add, select or remove points, or to place centroids by hand
 
 Run locally:   streamlit run app.py
 """
 
+import io
+import math
 import time
 
 import matplotlib
@@ -20,6 +23,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
+from PIL import Image
+from streamlit_image_coordinates import streamlit_image_coordinates
 
 from kmeans_model import (
     DATASETS, INIT_METHODS, MAX_K, WORKED_EXAMPLE, WORKED_START,
@@ -54,8 +59,8 @@ def safe_init():
     if is_manual():
         m.centroids = []
         m.clear_run()
-        return (f"MANUAL START\nType the positions of the {m.k} centroids in the sidebar, "
-                "then press Place centroids.\n")
+        return (f"MANUAL START\nClick {m.k} places on the plot to put the centroids "
+                "(or type exact positions in the sidebar).\n")
     try:
         msg = m.init_centroids(ss.init_method)
     except ValueError as e:
@@ -89,11 +94,75 @@ def load_dataset():
         m.points = []
         m.k = ss.k
         m.clear_run()
-        msg = ("EMPTY CANVAS\nAdd points in the Edit points table below the plot, "
+        msg = ("EMPTY CANVAS\nClick on the plot to add points (or use the Edit points table), "
                "then press Initialise.\n")
     ss.lims = plot_limits(m.points, is_worked())
     ss.log = msg
+    ss.selected = None
     ss.version += 1
+
+
+def points_changed(msg):
+    """Points were added / removed / edited: restart the run, keep centroids."""
+    ss.model.clear_run()
+    ss.running = False
+    ss.animate_from = None
+    ss.selected = None
+    ss.log = msg
+    ss.version += 1
+
+
+def select_point(i):
+    ss.selected = i
+    ss.table_ver += 1          # re-key the table so the row shows as selected
+
+
+def on_plot_click():
+    """Turn a click on the plot image into data coordinates and act on it."""
+    v, g = ss.get("plot_click"), ss.get("plot_geom")
+    if not v or not g or v.get("unix_time") == ss.last_click:
+        return
+    ss.last_click = v.get("unix_time")
+    W, H, (bx0, by0, bx1, by1), (x0, x1, y0, y1) = g
+    fx = v["x"] * W / v["width"]
+    fy = H - v["y"] * H / v["height"]
+    if not (bx0 <= fx <= bx1 and by0 <= fy <= by1):
+        return                  # clicked outside the axes
+    x = round(x0 + (fx - bx0) / (bx1 - bx0) * (x1 - x0), 1)
+    y = round(y0 + (fy - by0) / (by1 - by0) * (y1 - y0), 1)
+    m = ss.model
+    ss.running = False
+
+    # manual centroid placement
+    if is_manual() and len(m.centroids) < m.k:
+        m.centroids.append([x, y])
+        m.clear_run()
+        left = m.k - len(m.centroids)
+        if not left:
+            remember_start()
+        ss.log = (f"MANUAL START\nμ{len(m.centroids)} placed at ({fmt(x)}, {fmt(y)}). "
+                  + (f"Click {left} more." if left else "Press Step to begin.") + "\n")
+        return
+
+    near = None
+    if m.points:
+        d = [math.hypot(p[1] - x, p[2] - y) for p in m.points]
+        i = min(range(len(d)), key=d.__getitem__)
+        if d[i] < (x1 - x0) * 0.03:
+            near = i
+
+    if ss.click_mode.startswith("Remove"):
+        if near is None:
+            ss.flash = "No point there. Click right on a point to remove it."
+            return
+        p = m.points.pop(near)
+        points_changed(f"Removed point {p[0]} ({fmt(p[1])}, {fmt(p[2])}). The run restarts.\n")
+    elif near is not None:
+        select_point(near)
+    else:
+        name = next_free_name(m.points)
+        m.points.append([name, x, y])
+        points_changed(f"Added point {name} ({fmt(x)}, {fmt(y)}). The run restarts.\n")
 
 
 def on_k_change():
@@ -172,6 +241,11 @@ def init_state():
     ss.animate_from = None
     ss.start_centroids = None
     ss.flash = None
+    ss.click_mode = "Add or select a point"
+    ss.selected = None
+    ss.table_ver = 0
+    ss.last_click = None
+    ss.plot_geom = None
     load_dataset()
 
 
@@ -247,9 +321,17 @@ def draw(m, cents, selected, lims, show_coords, show_lines):
     return fig
 
 
-def show_fig(placeholder, fig):
-    placeholder.pyplot(fig, width="stretch")
+def fig_to_image(fig):
+    """PNG of the figure, plus where the axes sit in it (for mapping clicks)."""
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=fig.dpi)   # no bbox_inches: keeps pixel geometry exact
+    ax = fig.axes[0]
+    bb = ax.get_window_extent()
+    geom = (fig.bbox.width, fig.bbox.height, (bb.x0, bb.y0, bb.x1, bb.y1),
+            (*ax.get_xlim(), *ax.get_ylim()))
     plt.close(fig)
+    buf.seek(0)
+    return Image.open(buf), geom
 
 
 def points_table(m):
@@ -309,11 +391,13 @@ with st.sidebar:
               help="Reload the chosen dataset (new random blobs for Random blobs).")
     st.number_input("K (number of clusters)", min_value=1, max_value=MAX_K, step=1,
                     key="k", on_change=on_k_change)
-    st.selectbox("Starting centroids", INIT_METHODS, key="init_method")
+    st.selectbox("Starting centroids", INIT_METHODS, key="init_method", on_change=on_init)
     if is_manual():
+        placed = len(m.centroids) if len(m.centroids) < m.k else m.k
+        st.caption(f"Click the plot to place the centroids: {placed} of {m.k} placed.")
+        st.button("Clear centroids and click again", on_click=on_init, width="stretch")
         lo, hi = ss.lims[0], ss.lims[1]
-        with st.form("manual_form"):
-            st.caption(f"Type a position for each of the {ss.k} centroids.")
+        with st.expander("Or type exact positions"), st.form("manual_form", border=False):
             for j in range(ss.k):
                 default = m.centroids[j] if len(m.centroids) == ss.k else \
                     [round(lo + (j + 1) * (hi - lo) / (ss.k + 1), 1)] * 2
@@ -325,6 +409,10 @@ with st.sidebar:
         st.button("Initialise", on_click=on_init, type="primary", width="stretch",
                   help="Place new starting centroids with the chosen method.")
 
+    st.header("Clicking the plot")
+    st.radio("Clicking the plot", ["Add or select a point", "Remove a point"],
+             key="click_mode", label_visibility="collapsed")
+
     st.header("Display")
     st.toggle("Show (x, y) labels", key="show_coords")
     st.toggle("Show distance lines", key="show_lines")
@@ -332,8 +420,8 @@ with st.sidebar:
     st.slider("Animation speed", 0.3, 3.0, step=0.1, key="speed")
 
     st.divider()
-    st.caption("Tip: press Space to step. Click a row in the Points table to see "
-               "that point's distance calculations on the plot.")
+    st.caption("Tip: press Space to step. Click empty space on the plot to add a point; "
+               "click a point (or its row in the Points table) to see its distance calculations.")
 
 # header and main controls
 st.title("K-means clustering, one step at a time")
@@ -358,11 +446,16 @@ left, right = st.columns([5, 6], gap="large")
 # right column first, so the selected table row is known before drawing the plot
 with right:
     st.subheader("Points")
+    if ss.selected is not None and ss.selected >= len(m.points):
+        ss.selected = None
+    default = {"selection": {"rows": [ss.selected]}} if ss.selected is not None else None
     event = st.dataframe(points_table(m), hide_index=True, width="stretch",
                          height=min(38 + 35 * max(len(m.points), 1), 400),
-                         on_select="rerun", selection_mode="single-row", key=f"ptable_{ss.version}")
+                         on_select="rerun", selection_mode="single-row", selection_default=default,
+                         key=f"ptable_{ss.version}_{ss.table_ver}")
     rows = event.selection.rows if event else []
-    selected = rows[0] if rows and rows[0] < len(m.points) else None
+    ss.selected = rows[0] if rows and rows[0] < len(m.points) else None
+    selected = ss.selected
 
     st.subheader("Centroids")
     if m.centroids:
@@ -385,17 +478,23 @@ with left:
             t = f / frames
             e = 2 * t * t if t < 0.5 else 1 - (-2 * t + 2) ** 2 / 2
             cents = [[a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e] for a, b in zip(old, new)]
-            show_fig(plot_slot, draw(m, cents, selected, ss.lims, ss.show_coords, ss.show_lines))
+            img, _ = fig_to_image(draw(m, cents, selected, ss.lims, ss.show_coords, ss.show_lines))
+            plot_slot.image(img, width="stretch")
             time.sleep(0.03 / ss.speed)
     ss.animate_from = None
-    show_fig(plot_slot, draw(m, m.centroids, selected, ss.lims, ss.show_coords, ss.show_lines))
+    img, ss.plot_geom = fig_to_image(draw(m, m.centroids, selected, ss.lims,
+                                          ss.show_coords, ss.show_lines))
+    with plot_slot.container():
+        streamlit_image_coordinates(img, width="stretch", key="plot_click",
+                                    on_click=on_plot_click, cursor="crosshair",
+                                    png_compression_level=1)
 
     if len(m.J_hist) > 1:
         st.caption("Objective J after each Assign step (it never goes up)")
         st.line_chart(pd.DataFrame({"J": m.J_hist}, index=range(1, len(m.J_hist) + 1)), height=160)
 
     with st.expander("Edit points", expanded=not m.points):
-        st.caption("Change x or y, add rows at the bottom, or select rows and delete them. "
+        st.caption("Type exact values: change x or y, add rows at the bottom, or select rows and delete them. "
                    "Any edit restarts the run and keeps the current centroids.")
         base = pd.DataFrame([[p[0], float(p[1]), float(p[2])] for p in m.points],
                             columns=["Point", "x", "y"])
@@ -417,12 +516,9 @@ with left:
             old_pts = [[p[0], float(p[1]), float(p[2])] for p in m.points]
             if new_pts != old_pts:
                 m.points = new_pts
-                m.clear_run()
                 in_box = all(0 <= v <= 9 for p in new_pts for v in p[1:])
                 ss.lims = plot_limits(new_pts, is_worked() and in_box)
-                ss.log = "POINTS EDITED\nThe run restarts with the same centroids. Press Step.\n"
-                ss.running = False
-                ss.version += 1
+                points_changed("POINTS EDITED\nThe run restarts with the same centroids. Press Step.\n")
                 st.rerun()
 
 # auto-run: one step per rerun, so every step is drawn
