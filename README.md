@@ -3,7 +3,7 @@
 An interactive demo that runs K-means step by step and shows every number: the distance from each point to each centroid, which cluster each point joins, how each centroid's new position is calculated, and the objective J after every Assign step.
 
 <!-- After deploying, replace the link below with your app URL -->
-[![Click Here to Run It Live](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://kmeans-demo.streamlit.app/)
+[![Click Here to Run It Live]](https://kmeans-demo.streamlit.app/)
 
 ## Features
 
