@@ -1,11 +1,11 @@
-# K-means clustering, one step at a time
+# K-means clustering - interactive visualization/steps
 
-An interactive classroom demo that runs K-means step by step and shows every number: the distance from each point to each centroid, which cluster each point joins, how each centroid's new position is calculated, and the objective J after every Assign step.
+An interactive demo that runs K-means step by step and shows every number: the distance from each point to each centroid, which cluster each point joins, how each centroid's new position is calculated, and the objective J after every Assign step.
 
 <!-- After deploying, replace the link below with your app URL -->
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://YOUR-APP-NAME.streamlit.app)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://kmeans-demo.streamlit.app/)
 
-## What students see
+## Features
 
 - **Plot**: points coloured by cluster, centroids as diamonds, dashed lines to each point's own centroid, and arrows showing where centroids move in the Update step. Points that changed cluster are circled.
 - **Points table**: distance to every centroid (the nearest is ticked), the chosen cluster and the squared distance. Click a row to draw that point's distances on the plot and write out the full Euclidean distance formulas.
@@ -13,7 +13,7 @@ An interactive classroom demo that runs K-means step by step and shows every num
 - **Calculations**: the full arithmetic for each step — distances for Assign, means for Update, and J = Σ d².
 - **J chart**: the objective after each Assign step, showing it never increases.
 
-## Using it in class
+## Usage
 
 1. Pick a dataset in the sidebar. **Worked example** is the 6-point, K = 2 example starting at B (5, 8) and E (6, 6).
 2. Choose K and how to place the starting centroids (first K points, random points, k-means++, or **Manual**: click K places on the plot).
@@ -22,29 +22,7 @@ An interactive classroom demo that runs K-means step by step and shows every num
 5. **Click the plot** to add a point where you click (the current x, y under the mouse is shown in the corner), or click an existing point to show its distance calculations. Switch the sidebar to **Remove a point** to delete points by clicking them.
 6. Open **Edit points** under the plot to type exact coordinates.
 
-## Run it locally
-
-```bash
-git clone https://github.com/YOUR-USERNAME/kmeans-teaching-demo.git
-cd kmeans-teaching-demo
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-The app opens at http://localhost:8501.
-
-## Deploy on Streamlit Community Cloud (free)
-
-1. Push this repository to GitHub (public repositories are simplest).
-2. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
-3. Click **Create app**, choose this repository and branch `main`, and set the main file path to `app.py`.
-4. Optionally pick a custom subdomain, then click **Deploy**.
-
-Every push to `main` redeploys the app automatically.
-
-## Project layout
+## Layout
 
 ```
 kmeans-teaching-demo/
