@@ -1,5 +1,5 @@
 """
-K-Means Clustering - Interactive Teaching Demo (Streamlit version)
+K-Means Clustering - Interactive Demo
 ==================================================================
 
 Runs K-means one step at a time and shows every number:
