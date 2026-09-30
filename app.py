@@ -296,10 +296,10 @@ if ss.flash:
 # sidebar controls
 with st.sidebar:
     st.header("Setup")
-    # Using HTML for background color and bold text
+    # Using HTML to add a background color and bold text
     st.markdown(
-        Prepared by '<span style="background-color: #FFFF00; font-weight: bold; padding: 2px 5px; border-radius: 3px;">Shukla Mondal</span>', 
-        unsafe_allow_code=True
+        'Prepared by <span style=padding: 2px 6px; border-radius: 4px; font-weight: bold; color: black;">Shukla Mondal</span>', 
+        unsafe_allow_html=True
     )
     st.selectbox("Data", DATASETS, key="dataset", on_change=load_dataset)
     st.button("New data", on_click=load_dataset, width="stretch",
