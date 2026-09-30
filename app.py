@@ -295,7 +295,7 @@ if ss.flash:
 
 # sidebar controls
 with st.sidebar:
-    st.header("Setup Prepared by Shukla Mondal")
+    st.header("Setup \n\n Prepared by Shukla Mondal")
     st.selectbox("Data", DATASETS, key="dataset", on_change=load_dataset)
     st.button("New data", on_click=load_dataset, width="stretch",
               help="Reload the chosen dataset (new random blobs for Random blobs).")
