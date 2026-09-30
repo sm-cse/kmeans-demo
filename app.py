@@ -298,7 +298,7 @@ with st.sidebar:
     st.header("Setup")
     # Using HTML to add a background color and bold text
     st.markdown(
-        'Prepared by <span style=padding: 2px 6px; border-radius: 4px; font-weight: bold; color: black;">Shukla Mondal</span>', 
+        'Prepared by <span style="background-color: #FFFF00; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: black;">Shukla Mondal</span>', 
         unsafe_allow_html=True
     )
     st.selectbox("Data", DATASETS, key="dataset", on_change=load_dataset)
