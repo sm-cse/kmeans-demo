@@ -13,29 +13,21 @@ Runs K-means one step at a time and shows every number:
 Run locally:   streamlit run app.py
 """
 
-import io
 import math
 import time
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
-from PIL import Image
-from streamlit_image_coordinates import streamlit_image_coordinates
 
 from kmeans_model import (
     DATASETS, INIT_METHODS, MAX_K, WORKED_EXAMPLE, WORKED_START,
     KMeansModel, fmt, make_blobs, next_free_name, plot_limits,
 )
+from plot_component import kmeans_plot
 
 PALETTE = ["#2b5cb8", "#b8336a", "#e08a1e", "#2f9e7a", "#7b4fc9", "#8a6d3b"]
 LIGHT = ["#dbe5f6", "#f5dbe6", "#fde9cf", "#d7efe6", "#e7ddf7", "#eee5d7"]
 CHANGED = "#ffd28f"
-GREY = "#b9bdc5"
-INK = "#1c2230"
 
 st.set_page_config(page_title="K-Means Teaching Demo", page_icon="🎯", layout="wide")
 ss = st.session_state
@@ -117,21 +109,20 @@ def select_point(i):
     ss.table_ver += 1          # re-key the table so the row shows as selected
 
 
-def on_plot_click():
-    """Turn a click on the plot image into data coordinates and act on it."""
-    v, g = ss.get("plot_click"), ss.get("plot_geom")
-    if not v or not g or v.get("unix_time") == ss.last_click:
-        return
-    ss.last_click = v.get("unix_time")
-    W, H, (bx0, by0, bx1, by1), (x0, x1, y0, y1) = g
-    fx = v["x"] * W / v["width"]
-    fy = H - v["y"] * H / v["height"]
-    if not (bx0 <= fx <= bx1 and by0 <= fy <= by1):
-        return                  # clicked outside the axes
-    x = round(x0 + (fx - bx0) / (bx1 - bx0) * (x1 - x0), 1)
-    y = round(y0 + (fy - by0) / (by1 - by0) * (y1 - y0), 1)
+def on_plot_clicks():
+    """Handle clicks sent by the browser plot (queued, each with an increasing id)."""
+    clicks = ss.plot.clicks or []
+    for c in sorted(clicks, key=lambda c: c["id"]):
+        if c["id"] <= ss.last_click_id:
+            continue            # already handled
+        ss.last_click_id = c["id"]
+        handle_click(float(c["x"]), float(c["y"]))
+
+
+def handle_click(x, y):
     m = ss.model
     ss.running = False
+    x0, x1 = ss.lims[0], ss.lims[1]
 
     # manual centroid placement
     if is_manual() and len(m.centroids) < m.k:
@@ -212,7 +203,10 @@ def do_step():
         remember_start()
     ss.log = m.step()
     if m.phase == "updated" and ss.animate:
+        ss.anim_id += 1
         ss.animate_from = [c[:] for c in m.prev_centroids]
+    else:
+        ss.animate_from = None
 
 
 def on_run():
@@ -244,96 +238,12 @@ def init_state():
     ss.click_mode = "Add or select a point"
     ss.selected = None
     ss.table_ver = 0
-    ss.last_click = None
-    ss.plot_geom = None
+    ss.last_click_id = 0
+    ss.anim_id = 0
     load_dataset()
 
 
-# --------------------------------------------------------------------------- drawing
-def draw(m, cents, selected, lims, show_coords, show_lines):
-    fig, ax = plt.subplots(figsize=(7, 7), dpi=110)
-    x0, x1, y0, y1 = lims
-    ax.set_xlim(x0, x1)
-    ax.set_ylim(y0, y1)
-    ax.set_aspect("equal")
-    step = 1 if (x1 - x0) <= 12 else 2
-    ax.set_xticks(range(int(x0), int(x1) + 1, step))
-    ax.set_yticks(range(int(y0), int(y1) + 1, step))
-    ax.grid(True, color="#e6e3dc", linewidth=1)
-    ax.set_axisbelow(True)
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    for s in ("top", "right"):
-        ax.spines[s].set_visible(False)
-    n = len(m.points)
-    small = n <= 30
-
-    # distance lines (assign step)
-    if show_lines and m.phase in ("assigned", "converged") and cents:
-        for p, lab in zip(m.points, m.labels):
-            if lab is not None:
-                ax.plot([p[1], cents[lab][0]], [p[2], cents[lab][1]], linestyle="--",
-                        color=PALETTE[lab], alpha=0.45, linewidth=1.4, zorder=1)
-    # ghosts of old centroids (update step)
-    if m.prev_centroids and m.phase == "updated":
-        for j, (a, b) in enumerate(zip(m.prev_centroids, m.centroids)):
-            ax.plot(*a, marker="D", markersize=13, color=PALETTE[j], alpha=0.2,
-                    markeredgecolor=PALETTE[j], zorder=2)
-            ax.annotate("", xy=b, xytext=a, zorder=2,
-                        arrowprops=dict(arrowstyle="->", color=PALETTE[j], linestyle=":", lw=1.8))
-    # points
-    for i, (name, x, y) in enumerate(m.points):
-        lab = m.labels[i] if i < len(m.labels) else None
-        col = GREY if lab is None else PALETTE[lab]
-        ax.scatter([x], [y], s=150 if small else 70, color=col, edgecolors="white", linewidths=1.5, zorder=3)
-        if i in m.changed:
-            ax.scatter([x], [y], s=520 if small else 260, facecolors="none", edgecolors="#e08a1e",
-                       linewidths=2.2, zorder=3)
-        if i == selected:
-            ax.scatter([x], [y], s=700, facecolors="none", edgecolors=INK, linewidths=2.2, zorder=3)
-        if small or i == selected:
-            full = show_coords and (n <= 12 or i == selected)
-            label = f"{name} ({fmt(x)}, {fmt(y)})" if full else name
-            ax.annotate(label, (x, y), xytext=(8, 7), textcoords="offset points",
-                        fontsize=10, color=INK, zorder=4)
-    # selected point's distances to every centroid
-    if selected is not None and selected < n and cents and len(cents) == m.k:
-        _, sx, sy = m.points[selected]
-        for j, c in enumerate(cents):
-            d = ((sx - c[0]) ** 2 + (sy - c[1]) ** 2) ** 0.5
-            ax.plot([sx, c[0]], [sy, c[1]], color=PALETTE[j], linewidth=2, zorder=2)
-            ax.annotate(f"{d:.2f}", ((sx + c[0]) / 2, (sy + c[1]) / 2), fontsize=10, fontweight="bold",
-                        color=PALETTE[j], ha="center",
-                        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=PALETTE[j], lw=1), zorder=5)
-    # centroids
-    for j, c in enumerate(cents):
-        ax.plot(*c, marker="D", markersize=16, color=PALETTE[j], markeredgecolor=INK,
-                markeredgewidth=2, zorder=6)
-        txt = f"μ{j + 1} ({fmt(c[0])}, {fmt(c[1])})" if show_coords else f"μ{j + 1}"
-        ax.annotate(txt, c, xytext=(10, -16), textcoords="offset points", fontsize=11,
-                    fontweight="bold", color="white", zorder=7,
-                    bbox=dict(boxstyle="round,pad=0.25", fc=PALETTE[j], ec="none"))
-    title = f"K-means  ·  K = {m.k}  ·  iteration {m.iteration}"
-    if m.phase == "converged":
-        title += "  ·  ✔ converged"
-    ax.set_title(title, fontsize=13, fontweight="bold", color=INK)
-    fig.tight_layout()
-    return fig
-
-
-def fig_to_image(fig):
-    """PNG of the figure, plus where the axes sit in it (for mapping clicks)."""
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=fig.dpi)   # no bbox_inches: keeps pixel geometry exact
-    ax = fig.axes[0]
-    bb = ax.get_window_extent()
-    geom = (fig.bbox.width, fig.bbox.height, (bb.x0, bb.y0, bb.x1, bb.y1),
-            (*ax.get_xlim(), *ax.get_ylim()))
-    plt.close(fig)
-    buf.seek(0)
-    return Image.open(buf), geom
-
-
+# --------------------------------------------------------------------------- tables
 def points_table(m):
     k = m.k
     have_c = len(m.centroids) == k
@@ -469,25 +379,32 @@ with right:
         st.code(m.explain_point(selected), language=None)
 
 with left:
-    plot_slot = st.empty()
-    if ss.animate_from is not None and len(ss.animate_from) == len(m.centroids):
-        old, new = ss.animate_from, m.centroids
-        ss.animate_from = None
-        frames = 12
-        for f in range(frames):
-            t = f / frames
-            e = 2 * t * t if t < 0.5 else 1 - (-2 * t + 2) ** 2 / 2
-            cents = [[a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e] for a, b in zip(old, new)]
-            img, _ = fig_to_image(draw(m, cents, selected, ss.lims, ss.show_coords, ss.show_lines))
-            plot_slot.image(img, width="stretch")
-            time.sleep(0.03 / ss.speed)
-    ss.animate_from = None
-    img, ss.plot_geom = fig_to_image(draw(m, m.centroids, selected, ss.lims,
-                                          ss.show_coords, ss.show_lines))
-    with plot_slot.container():
-        streamlit_image_coordinates(img, width="stretch", key="plot_click",
-                                    on_click=on_plot_click, cursor="crosshair",
-                                    png_compression_level=1)
+    title = f"K-means  ·  K = {m.k}  ·  iteration {m.iteration}"
+    if m.phase == "converged":
+        title += "  ·  ✔ converged"
+    kmeans_plot(
+        data={
+            "lims": list(ss.lims),
+            "k": m.k,
+            "points": [[p[0], p[1], p[2],
+                        m.labels[i] if i < len(m.labels) and m.labels[i] is not None else -1,
+                        i in m.changed] for i, p in enumerate(m.points)],
+            "centroids": m.centroids,
+            "prev": m.prev_centroids,
+            "phase": m.phase,
+            "selected": selected,
+            "show_coords": ss.show_coords,
+            "show_lines": ss.show_lines,
+            "title": title,
+            "palette": PALETTE,
+            "mode": "remove" if ss.click_mode.startswith("Remove") else "add",
+            "manual_left": max(0, m.k - len(m.centroids)) if is_manual() else 0,
+            "anim": {"id": ss.anim_id, "from": ss.animate_from}
+                    if ss.animate_from and m.phase == "updated" else None,
+            "speed": ss.speed,
+            "ack": ss.last_click_id,
+        },
+        key="plot", on_clicks=on_plot_clicks)
 
     if len(m.J_hist) > 1:
         st.caption("Objective J after each Assign step (it never goes up)")

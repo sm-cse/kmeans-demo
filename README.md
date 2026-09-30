@@ -19,7 +19,7 @@ An interactive classroom demo that runs K-means step by step and shows every num
 2. Choose K and how to place the starting centroids (first K points, random points, k-means++, or **Manual**: click K places on the plot).
 3. Press **Step** (or the Space bar) to alternate Assign → Update → Assign … until it converges, or **Run** to play through automatically.
 4. **Reset** returns to the same starting centroids so you can replay the run.
-5. **Click the plot** to add a point where you click, or click an existing point to show its distance calculations. Switch the sidebar to **Remove a point** to delete points by clicking them.
+5. **Click the plot** to add a point where you click (the current x, y under the mouse is shown in the corner), or click an existing point to show its distance calculations. Switch the sidebar to **Remove a point** to delete points by clicking them.
 6. Open **Edit points** under the plot to type exact coordinates.
 
 ## Run it locally
@@ -49,6 +49,7 @@ Every push to `main` redeploys the app automatically.
 ```
 kmeans-teaching-demo/
 ├── app.py                  # Streamlit interface
+├── plot_component.py       # the interactive plot, drawn in the browser (SVG + JavaScript)
 ├── kmeans_model.py         # K-means logic and the written-out calculations (no UI code)
 ├── requirements.txt
 ├── .streamlit/config.toml  # theme
