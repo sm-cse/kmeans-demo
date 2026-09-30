@@ -15,7 +15,7 @@ An interactive demo that runs K-means step by step and shows every number: the d
 
 ## Usage
 
-1. Pick a dataset in the sidebar. **Worked example** is the 6-point, K = 2 example starting at B (5, 8) and E (6, 6).
+1. Pick a dataset in the sidebar. **Example** is the 6-point, K = 2 example starting at B (5, 8) and E (6, 6).
 2. Choose K and how to place the starting centroids (first K points, random points, k-means++, or **Manual**: click K places on the plot).
 3. Press **Step** (or the Space bar) to alternate Assign → Update → Assign … until it converges, or **Run** to play through automatically.
 4. **Reset** returns to the same starting centroids so you can replay the run.
