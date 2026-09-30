@@ -74,7 +74,7 @@ def load_dataset():
         m.centroids = [c[:] for c in WORKED_START]
         m.clear_run()
         remember_start()
-        msg = ("EXAMPLE — 6 points, K = 2\n"
+        msg = ("WORKED EXAMPLE — 6 points, K = 2\n"
                "Starting centroids: μ1 = B (5, 8), μ2 = E (6, 6)\n\n"
                "Press Step (or Space) to run the first ASSIGN step.\n")
     elif ss.dataset.startswith("Random"):
