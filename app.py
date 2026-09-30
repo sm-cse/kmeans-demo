@@ -35,7 +35,7 @@ ss = st.session_state
 
 # --------------------------------------------------------------------------- state & actions
 def is_worked():
-    return ss.dataset.startswith("Worked")
+    return ss.dataset == DATASETS[0]
 
 
 def is_manual():
@@ -74,7 +74,7 @@ def load_dataset():
         m.centroids = [c[:] for c in WORKED_START]
         m.clear_run()
         remember_start()
-        msg = ("WORKED EXAMPLE — 6 points, K = 2\n"
+        msg = ("EXAMPLE — 6 points, K = 2\n"
                "Starting centroids: μ1 = B (5, 8), μ2 = E (6, 6)\n\n"
                "Press Step (or Space) to run the first ASSIGN step.\n")
     elif ss.dataset.startswith("Random"):
