@@ -14,7 +14,7 @@ MAX_K = 6
 WORKED_EXAMPLE = [("A", 3, 3), ("B", 5, 8), ("C", 4, 1), ("D", 4, 7), ("E", 6, 6), ("F", 5, 2)]
 WORKED_START = [[5, 8], [6, 6]]  # start at B and E, as in the slides
 
-DATASETS = ["Worked example (6 points)", "Random blobs", "Empty (add your own)"]
+DATASETS = ["Example", "Random blobs", "Empty (add your own)"]
 INIT_METHODS = ["First K points", "Random points", "k-means++", "Manual (click the plot)"]
 
 
